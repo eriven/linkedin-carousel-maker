@@ -8,6 +8,7 @@ interface CarouselPreviewProps {
   slides: SlideItem[]
   onEditHook: () => void
   onBack: () => void
+  onDownloadSuccess: (bytes: Uint8Array) => void
 }
 
 type PageThumb = {
@@ -23,6 +24,7 @@ export function CarouselPreview({
   slides,
   onEditHook,
   onBack,
+  onDownloadSuccess,
 }: CarouselPreviewProps) {
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
@@ -100,6 +102,7 @@ export function CarouselPreview({
       )
       const bytes = await buildPdf(pageInputs)
       downloadPdf(bytes)
+      onDownloadSuccess(bytes)
     } catch (e) {
       setGenError(e instanceof Error ? e.message : 'PDF generation failed')
     } finally {

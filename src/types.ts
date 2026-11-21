@@ -9,12 +9,16 @@ export type HookFont = 'boldSans' | 'cleanSans' | 'serif'
 export type HookFontSize = 'small' | 'medium' | 'large'
 export type TextAlignment = 'left' | 'center'
 
-export type AppStep = 'upload' | 'hook' | 'preview'
-
 export interface SlideItem {
   id: string
   file: File
   previewUrl: string
+}
+
+export interface CustomBackgroundSource {
+  blob: Blob
+  name: string
+  type: string
 }
 
 export interface HookConfig {
@@ -25,11 +29,13 @@ export interface HookConfig {
   font: HookFont
   fontSize: HookFontSize
   alignment: TextAlignment
+  useTextScrim: boolean
 }
 
 export interface SavedHook extends HookConfig {
   blob: Blob
   previewUrl: string
+  customBackgroundSource: CustomBackgroundSource | null
 }
 
 export const PAGE_WIDTH = 1080

@@ -1,11 +1,16 @@
 import type { HookConfig } from '../types'
 import { PAGE_HEIGHT, PAGE_WIDTH } from '../types'
 import { drawBackground } from './drawBackground'
+import { drawImageCover, type CanvasImageSource } from './coverFit'
 import {
   FONT_FAMILY,
   FONT_SIZE_PX,
   FONT_WEIGHT,
 } from './fonts'
+
+export type HookDrawOptions = {
+  customBackground?: CanvasImageSource | null
+}
 
 function wrapLines(
   ctx: CanvasRenderingContext2D,
@@ -35,9 +40,34 @@ function wrapLines(
   return lines
 }
 
+function drawTextScrim(
+  ctx: CanvasRenderingContext2D,
+  startY: number,
+  blockHeight: number,
+  padX: number,
+  maxWidth: number,
+  alignment: HookConfig['alignment'],
+): void {
+  const inset = 24
+  const y = Math.max(0, startY - inset)
+  const h = Math.min(PAGE_HEIGHT - y, blockHeight + inset * 2)
+  const x = alignment === 'center' ? padX : padX - inset
+  const w =
+    alignment === 'center' ? PAGE_WIDTH - padX * 2 : maxWidth + inset * 2
+
+  const gradient = ctx.createLinearGradient(0, y, 0, y + h)
+  gradient.addColorStop(0, 'rgba(0,0,0,0)')
+  gradient.addColorStop(0.15, 'rgba(0,0,0,0.35)')
+  gradient.addColorStop(0.85, 'rgba(0,0,0,0.35)')
+  gradient.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(x, y, w, h)
+}
+
 export function drawHookCanvas(
   canvas: HTMLCanvasElement,
   config: HookConfig,
+  options?: HookDrawOptions,
 ): void {
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
   canvas.width = PAGE_WIDTH * dpr
@@ -48,7 +78,12 @@ export function drawHookCanvas(
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-  drawBackground(ctx, config.backgroundStyle, config.backgroundColor)
+  const customBg = options?.customBackground
+  if (customBg) {
+    drawImageCover(ctx, customBg, PAGE_WIDTH, PAGE_HEIGHT)
+  } else {
+    drawBackground(ctx, config.backgroundStyle, config.backgroundColor)
+  }
 
   const padX = 80
   const maxWidth = PAGE_WIDTH - padX * 2
@@ -64,6 +99,10 @@ export function drawHookCanvas(
   const lineHeight = fontSize * 1.25
   const blockHeight = lines.length * lineHeight
   const startY = (PAGE_HEIGHT - blockHeight) / 2
+
+  if (customBg && config.useTextScrim) {
+    drawTextScrim(ctx, startY, blockHeight, padX, maxWidth, config.alignment)
+  }
 
   lines.forEach((line, i) => {
     const y = startY + i * lineHeight

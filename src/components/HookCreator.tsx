@@ -9,6 +9,7 @@ import {
 import type { BackgroundStyle } from '../types'
 import { drawHookCanvas, hookCanvasToBlob } from '../lib/drawHookCanvas'
 import { HookPreview } from './HookPreview'
+import { imageFilesFromFileList } from '../lib/clipboardImages'
 
 const DEFAULT_CONFIG: HookConfig = {
   backgroundStyle: 'dotGrid',
@@ -18,29 +19,107 @@ const DEFAULT_CONFIG: HookConfig = {
   font: 'boldSans',
   fontSize: 'medium',
   alignment: 'left',
+  useTextScrim: true,
+}
+
+function configFromSaved(hook: SavedHook): HookConfig {
+  return {
+    backgroundStyle: hook.backgroundStyle,
+    backgroundColor: hook.backgroundColor,
+    text: hook.text,
+    textColor: hook.textColor,
+    font: hook.font,
+    fontSize: hook.fontSize,
+    alignment: hook.alignment,
+    useTextScrim: hook.useTextScrim,
+  }
 }
 
 interface HookCreatorProps {
-  initial?: HookConfig | null
+  initial?: SavedHook | null
   onSave: (hook: SavedHook) => void
   onBack: () => void
 }
 
 export function HookCreator({ initial, onSave, onBack }: HookCreatorProps) {
-  const [config, setConfig] = useState<HookConfig>(initial ?? DEFAULT_CONFIG)
+  const [config, setConfig] = useState<HookConfig>(
+    initial ? configFromSaved(initial) : DEFAULT_CONFIG,
+  )
+  const [customBackgroundFile, setCustomBackgroundFile] = useState<File | null>(
+    () => {
+      const src = initial?.customBackgroundSource
+      if (!src) return null
+      return new File([src.blob], src.name, { type: src.type })
+    },
+  )
+  const [backgroundBitmap, setBackgroundBitmap] = useState<ImageBitmap | null>(
+    null,
+  )
   const [error, setError] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const bgInputRef = useRef<HTMLInputElement>(null)
+
+  const hasCustomBg = customBackgroundFile != null
+
+  useEffect(() => {
+    if (!customBackgroundFile) {
+      setBackgroundBitmap((prev) => {
+        prev?.close()
+        return null
+      })
+      return
+    }
+
+    let active = true
+    void createImageBitmap(customBackgroundFile, {
+      imageOrientation: 'from-image',
+    })
+      .then((bmp) => {
+        if (!active) {
+          bmp.close()
+          return
+        }
+        setBackgroundBitmap((prev) => {
+          prev?.close()
+          return bmp
+        })
+      })
+      .catch(() => {
+        if (active) setBackgroundBitmap(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [customBackgroundFile])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const id = requestAnimationFrame(() => drawHookCanvas(canvas, config))
+    const id = requestAnimationFrame(() =>
+      drawHookCanvas(canvas, config, {
+        customBackground: backgroundBitmap,
+      }),
+    )
     return () => cancelAnimationFrame(id)
-  }, [config])
+  }, [config, backgroundBitmap])
 
   const patch = (partial: Partial<HookConfig>) => {
     setConfig((c) => ({ ...c, ...partial }))
     setError(null)
+  }
+
+  const clearCustomBackground = () => {
+    setCustomBackgroundFile(null)
+    setBackgroundBitmap((prev) => {
+      prev?.close()
+      return null
+    })
+  }
+
+  const handlePatternSelect = (key: BackgroundStyle) => {
+    if (hasCustomBg) clearCustomBackground()
+    patch({ backgroundStyle: key })
   }
 
   const handleSave = async () => {
@@ -50,10 +129,25 @@ export function HookCreator({ initial, onSave, onBack }: HookCreatorProps) {
     }
     const canvas = canvasRef.current
     if (!canvas) return
-    drawHookCanvas(canvas, config)
+    drawHookCanvas(canvas, config, { customBackground: backgroundBitmap })
     const blob = await hookCanvasToBlob(canvas)
     const previewUrl = URL.createObjectURL(blob)
-    onSave({ ...config, blob, previewUrl })
+
+    const customBackgroundSource =
+      customBackgroundFile != null
+        ? {
+            blob: customBackgroundFile,
+            name: customBackgroundFile.name,
+            type: customBackgroundFile.type || 'image/png',
+          }
+        : null
+
+    onSave({
+      ...config,
+      blob,
+      previewUrl,
+      customBackgroundSource,
+    })
   }
 
   const styles = Object.keys(BACKGROUND_STYLE_LABELS) as BackgroundStyle[]
@@ -83,6 +177,60 @@ export function HookCreator({ initial, onSave, onBack }: HookCreatorProps) {
 
           <div>
             <p className="mb-2 text-sm font-medium text-gray-700">
+              Photo background
+            </p>
+            <input
+              ref={bgInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = imageFilesFromFileList(e.target.files)[0]
+                if (file) {
+                  setCustomBackgroundFile(file)
+                  patch({ useTextScrim: true })
+                }
+                e.target.value = ''
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => bgInputRef.current?.click()}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              >
+                Upload photo
+              </button>
+              {hasCustomBg && (
+                <>
+                  <span className="max-w-[140px] truncate text-xs text-gray-500">
+                    {customBackgroundFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearCustomBackground}
+                    className="text-sm font-medium text-brand underline-offset-2 hover:underline"
+                  >
+                    Remove photo
+                  </button>
+                </>
+              )}
+            </div>
+            {hasCustomBg && (
+              <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={config.useTextScrim}
+                  onChange={(e) => patch({ useTextScrim: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                Improve text contrast
+              </label>
+            )}
+          </div>
+
+          <div className={hasCustomBg ? 'opacity-50' : undefined}>
+            <p className="mb-2 text-sm font-medium text-gray-700">
               Background style
             </p>
             <div className="flex flex-wrap gap-2">
@@ -90,9 +238,10 @@ export function HookCreator({ initial, onSave, onBack }: HookCreatorProps) {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => patch({ backgroundStyle: key })}
-                  className={`rounded-lg border px-3 py-1.5 text-sm ${
-                    config.backgroundStyle === key
+                  disabled={hasCustomBg}
+                  onClick={() => handlePatternSelect(key)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm disabled:cursor-not-allowed ${
+                    !hasCustomBg && config.backgroundStyle === key
                       ? 'border-gray-900 bg-gray-900 text-white'
                       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
@@ -101,14 +250,21 @@ export function HookCreator({ initial, onSave, onBack }: HookCreatorProps) {
                 </button>
               ))}
             </div>
+            {hasCustomBg && (
+              <p className="mt-1 text-xs text-gray-500">
+                Remove the photo to use pattern backgrounds.
+              </p>
+            )}
           </div>
 
-          <ColorSwatches
-            label="Background color"
-            swatches={BACKGROUND_SWATCHES}
-            selected={config.backgroundColor}
-            onSelect={(color) => patch({ backgroundColor: color })}
-          />
+          <div className={hasCustomBg ? 'pointer-events-none opacity-50' : ''}>
+            <ColorSwatches
+              label="Background color"
+              swatches={BACKGROUND_SWATCHES}
+              selected={config.backgroundColor}
+              onSelect={(color) => patch({ backgroundColor: color })}
+            />
+          </div>
 
           <ColorSwatches
             label="Text color"

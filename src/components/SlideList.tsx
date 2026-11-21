@@ -24,6 +24,7 @@ interface SlideListProps {
   onRemove: (id: string) => void
   onAddMore: () => void
   onCreateHook: () => void
+  onEditHook: () => void
   onSkipHook: () => void
   onContinueToPreview: () => void
 }
@@ -90,6 +91,7 @@ export function SlideList({
   onRemove,
   onAddMore,
   onCreateHook,
+  onEditHook,
   onSkipHook,
   onContinueToPreview,
 }: SlideListProps) {
@@ -166,14 +168,26 @@ export function SlideList({
       )}
 
       {hook && (
-        <div className="mt-8 flex justify-center">
-          <button
-            type="button"
-            onClick={onContinueToPreview}
-            className="rounded-md border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
-          >
-            Continue to preview
-          </button>
+        <div className="mt-8 space-y-3 text-center">
+          <p className="text-sm text-gray-600">
+            Hook saved.{' '}
+            <button
+              type="button"
+              onClick={onEditHook}
+              className="font-medium text-brand underline-offset-2 hover:underline"
+            >
+              Edit hook
+            </button>
+          </p>
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={onContinueToPreview}
+              className="rounded-md border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            >
+              Continue to preview
+            </button>
+          </div>
         </div>
       )}
     </section>
