@@ -1,20 +1,27 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, type RefObject } from 'react'
+import { imageFilesFromFileList } from '../lib/clipboardImages'
 
 interface HomePageProps {
   onFilesSelected: (files: File[]) => void
+  onOpenPaste: () => void
+  pasteButtonRef?: RefObject<HTMLButtonElement | null>
   hasSlides: boolean
 }
 
-export function HomePage({ onFilesSelected, hasSlides }: HomePageProps) {
+export function HomePage({
+  onFilesSelected,
+  onOpenPaste,
+  pasteButtonRef,
+  hasSlides,
+}: HomePageProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const localPasteRef = useRef<HTMLButtonElement>(null)
+  const pasteRef = pasteButtonRef ?? localPasteRef
   const [dragOver, setDragOver] = useState(false)
 
   const pickFiles = useCallback(
     (fileList: FileList | null) => {
-      if (!fileList?.length) return
-      const images = Array.from(fileList).filter((f) =>
-        f.type.startsWith('image/'),
-      )
+      const images = imageFilesFromFileList(fileList)
       if (images.length) onFilesSelected(images)
     },
     [onFilesSelected],
@@ -44,7 +51,7 @@ export function HomePage({ onFilesSelected, hasSlides }: HomePageProps) {
         image that gets clicks.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <input
           ref={inputRef}
           type="file"
@@ -59,9 +66,17 @@ export function HomePage({ onFilesSelected, hasSlides }: HomePageProps) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-md bg-brand px-8 py-4 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover"
+          className="w-full max-w-xs rounded-md bg-brand px-8 py-4 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover sm:w-auto"
         >
           Select images
+        </button>
+        <button
+          ref={pasteRef}
+          type="button"
+          onClick={onOpenPaste}
+          className="w-full max-w-xs rounded-md border border-gray-300 bg-white px-8 py-4 text-lg font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50 sm:w-auto"
+        >
+          Paste images
         </button>
       </div>
 

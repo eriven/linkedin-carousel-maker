@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { HomePage } from './components/HomePage'
 import { SlideList } from './components/SlideList'
 import { HookCreator } from './components/HookCreator'
 import { CarouselPreview } from './components/CarouselPreview'
+import { PasteImagesModal } from './components/PasteImagesModal'
 import { useRevokeObjectUrls } from './hooks/useObjectUrl'
 import type { AppStep, SavedHook, SlideItem } from './types'
 
@@ -18,6 +19,10 @@ export default function App() {
   const [step, setStep] = useState<AppStep>('upload')
   const [slides, setSlides] = useState<SlideItem[]>([])
   const [hook, setHook] = useState<SavedHook | null>(null)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pasteSessionStartCount, setPasteSessionStartCount] = useState(0)
+  const pasteButtonRef = useRef<HTMLButtonElement>(null)
+
   const objectUrls = useMemo(() => {
     const urls = slides.map((s) => s.previewUrl)
     if (hook) urls.push(hook.previewUrl)
@@ -29,6 +34,22 @@ export default function App() {
     setSlides((prev) => [...prev, ...files.map(newSlide)])
     setStep('upload')
   }, [])
+
+  const openPasteModal = useCallback(() => {
+    setPasteSessionStartCount(slides.length)
+    setPasteOpen(true)
+  }, [slides.length])
+
+  const closePasteModal = useCallback(() => {
+    setPasteOpen(false)
+    requestAnimationFrame(() => pasteButtonRef.current?.focus())
+  }, [])
+
+  const pasteSessionCount = Math.max(0, slides.length - pasteSessionStartCount)
+  const pasteSessionPreviewUrls = useMemo(
+    () => slides.slice(pasteSessionStartCount).map((s) => s.previewUrl),
+    [slides, pasteSessionStartCount],
+  )
 
   const removeSlide = useCallback((id: string) => {
     setSlides((prev) => {
@@ -56,7 +77,12 @@ export default function App() {
   return (
     <main className="min-h-screen px-4 pb-16 pt-4 md:px-8">
       {step === 'upload' && (
-        <HomePage onFilesSelected={addFiles} hasSlides={slides.length > 0} />
+        <HomePage
+          onFilesSelected={addFiles}
+          onOpenPaste={openPasteModal}
+          pasteButtonRef={pasteButtonRef}
+          hasSlides={slides.length > 0}
+        />
       )}
 
       {step !== 'upload' && (
@@ -71,6 +97,7 @@ export default function App() {
           hook={hook}
           onReorder={setSlides}
           onRemove={removeSlide}
+          onAddMore={openPasteModal}
           onCreateHook={() => setStep('hook')}
           onSkipHook={() => {
             clearHook()
@@ -96,6 +123,14 @@ export default function App() {
           onBack={() => setStep('upload')}
         />
       )}
+
+      <PasteImagesModal
+        open={pasteOpen}
+        onClose={closePasteModal}
+        onImages={addFiles}
+        sessionCount={pasteSessionCount}
+        sessionPreviewUrls={pasteSessionPreviewUrls}
+      />
     </main>
   )
 }

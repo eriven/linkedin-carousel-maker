@@ -22,6 +22,7 @@ interface SlideListProps {
   hook: SavedHook | null
   onReorder: (slides: SlideItem[]) => void
   onRemove: (id: string) => void
+  onAddMore: () => void
   onCreateHook: () => void
   onSkipHook: () => void
   onContinueToPreview: () => void
@@ -87,6 +88,7 @@ export function SlideList({
   hook,
   onReorder,
   onRemove,
+  onAddMore,
   onCreateHook,
   onSkipHook,
   onContinueToPreview,
@@ -108,6 +110,15 @@ export function SlideList({
 
   return (
     <section className="mx-auto w-full max-w-xl">
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={onAddMore}
+          className="text-sm font-medium text-brand underline-offset-2 hover:underline"
+        >
+          Add more images
+        </button>
+      </div>
       <ul className="space-y-2">
         <DndContext
           sensors={sensors}

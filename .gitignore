@@ -7,22 +7,29 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies & build output
 node_modules
 dist
 dist-ssr
-*.local
 
-# Editor
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Vercel (local link; deploy via Git/CLI)
+.vercel
+
+# Editor / OS
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
 
-# Vercel
-.vercel
-
-# Local test artifacts (optional)
-errors/
-reference-images/
-DEPLOY.md
+# Non-production docs (keep README.md for the repo)
 SPEC.md
+DEPLOY.md
+
+# Non-production images & local test artifacts
+reference-images/
+errors/
